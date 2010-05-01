@@ -1,4 +1,4 @@
-(load-relative "../mzscheme/loadtest.ss")
+(load-relative "../racket/loadtest.rktl")
 (require mzlib/class
          syntax-color/token-tree)
 
