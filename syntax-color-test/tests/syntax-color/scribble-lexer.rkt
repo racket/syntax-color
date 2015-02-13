@@ -3,12 +3,18 @@
 
 (define in (open-input-string "@|x #|10|#| @me[1 2 #| comment |# ]{10}"))
 
+(define current-lexer-char (make-parameter #\@))
+
 (define (color str)
+  (define lexer
+    (if (equal? (current-lexer-char) #\@)
+      scribble-inside-lexer
+      (make-scribble-inside-lexer #:command-char (current-lexer-char))))
   (with-handlers ((exn:fail? exn-message))
     (let ([in (open-input-string str)])
       (port-count-lines! in)
       (let loop ([mode #f])
-        (let-values ([(lexeme type paren start end backup mode) (scribble-inside-lexer in 0 mode)])
+        (let-values ([(lexeme type paren start end backup mode) (lexer in 0 mode)])
           (if (eq? type 'eof)
               null
               (cons (list start end type backup)
@@ -46,6 +52,10 @@
 (test "@x" '((1 parenthesis)
              (1 symbol)))
 
+(parameterize ([current-lexer-char #\+])
+  (test "+x" '((1 parenthesis)
+               (1 symbol))))
+
 (test "@x str" '((1 parenthesis)
                  (1 symbol)
                  (4 text)))
@@ -72,7 +82,7 @@
                          (1 parenthesis)
                          (4 text)))
 
-(test "@x[z @w{10}] str" '((1 parenthesis)
+(define xzwstr-result    '((1 parenthesis)
                            (1 symbol) ; x
                            (1 parenthesis)
                            (1 symbol) ; z
@@ -84,6 +94,11 @@
                            (1 parenthesis)
                            (1 parenthesis)
                            (4 text)))
+(test "@x[z @w{10}] str" xzwstr-result)
+(parameterize ([current-lexer-char #\+])
+  (test "+x[z +w{10}] str" xzwstr-result))
+(parameterize ([current-lexer-char #\-])
+  (test "-x[z -w{10}] str" xzwstr-result))
 
 (test "@x[a@b]{a}{b}" '((1 parenthesis)
                         (1 symbol)
