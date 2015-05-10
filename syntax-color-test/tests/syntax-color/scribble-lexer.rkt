@@ -266,3 +266,10 @@
                                (1 parenthesis 3)
                                (1 parenthesis 4)
                                (3 text)))
+
+(test/chars chars "@|<|{a{c}|>|" '((5 parenthesis)
+                                   (3 text)
+                                   (4 parenthesis)))
+(test/chars chars "@|\u3BB|{a{c}|\u3BB|" '((5 parenthesis)
+                                           (3 text)
+                                           (4 parenthesis)))

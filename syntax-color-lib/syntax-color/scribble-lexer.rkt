@@ -386,13 +386,15 @@
 (define scribble-lexer (make-scribble-lexer))
 
 (define (flip s)
-  (list->bytes
-   (for/list ([c (in-bytes s)])
-     (cond
-      [(equal? c (char->integer #\()) (char->integer #\))]
-      [(equal? c (char->integer #\[)) (char->integer #\])]
-      [(equal? c (char->integer #\<)) (char->integer #\>)]
-      [(equal? c (char->integer #\))) (char->integer #\()]
-      [(equal? c (char->integer #\])) (char->integer #\[)]
-      [(equal? c (char->integer #\>)) (char->integer #\<)]
-      [else c]))))
+  (string->bytes/utf-8
+   (list->string
+    (reverse
+     (for/list ([c (in-string (bytes->string/utf-8 s))])
+       (cond
+        [(equal? c #\() #\)]
+        [(equal? c #\[) #\]]
+        [(equal? c #\<) #\>]
+        [(equal? c #\)) #\(]
+        [(equal? c #\]) #\[]
+        [(equal? c #\>) #\<]
+        [else c]))))))
