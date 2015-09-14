@@ -5,7 +5,7 @@
 (define deps '("scheme-lib"
                "base"
                "compatibility-lib"
-               "parser-tools-lib" "unstable-options-lib"))
+               "parser-tools-lib" "option-contract-lib"))
 
 (define pkg-desc "implementation (no documentation) part of \"syntax-color\"")
 
