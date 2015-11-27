@@ -1,4 +1,4 @@
-#lang scheme
+#lang racket
 (require syntax-color/scribble-lexer)
 
 (define in (open-input-string "@|x #|10|#| @me[1 2 #| comment |# ]{10}"))
@@ -273,3 +273,5 @@
 (test/chars chars "@|\u3BB|{a{c}|\u3BB|" '((5 parenthesis)
                                            (3 text)
                                            (4 parenthesis)))
+
+(test/chars '(#\^) "\\" '((1 text)))
