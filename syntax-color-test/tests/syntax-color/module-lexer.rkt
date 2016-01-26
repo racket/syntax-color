@@ -1,9 +1,11 @@
 #lang racket/base
 (require syntax-color/module-lexer
+         racket/class
+         racket/gui/base
          rackunit)
 
-(define (lex str count?)
-  (define p (open-input-string str))
+(define (lex str-or-port count?)
+  (define p (if (port? str-or-port) str-or-port (open-input-string str-or-port)))
   (when count? (port-count-lines! p))
   (let loop ([mode #f]
              [n 0])
@@ -75,3 +77,11 @@
          ("1" constant 26 27 ((proc scribble-lexer) . dont-care))
          ("\n" white-space 27 28 ((proc scribble-lexer) . dont-care))
          (,eof eof 28 28 ((proc scribble-lexer) . dont-care))))
+
+(check same?
+       (let ([t (new text%)])
+         (send t insert "#lang s-exp ")
+         (send t insert (new snip%))
+         (lex (open-input-text-editor t) #t))
+       '(("#lang s-exp " other 1 14 #f)
+         (,eof eof #f #f (proc racket-lexer))))

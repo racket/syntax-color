@@ -9,5 +9,6 @@
 (define pkg-authors '(mflatt))
 (define build-deps '("rackunit-lib"
                      "scheme-lib"
-                     "syntax-color-lib"))
+                     "syntax-color-lib"
+                     "gui-lib"))
 (define update-implies '("syntax-color-lib"))
