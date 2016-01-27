@@ -83,5 +83,5 @@
          (send t insert "#lang s-exp ")
          (send t insert (new snip%))
          (lex (open-input-text-editor t) #t))
-       '(("#lang s-exp " other 1 14 #f)
+       `(("#lang s-exp " other 1 14 #f)
          (,eof eof #f #f (proc racket-lexer))))
