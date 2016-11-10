@@ -443,7 +443,7 @@ end-string
 end-string
     "c i;;;;;; c ;;")
 (test '(";a" 1 "b") ";;;;" 1)  ;; a special comment
-(test '(";a" 1 "b\n1" 1) ";;;; cn" 4)
+(test '(";a" 1 "b\n1" 1) ";;;; cc" 4)
 (test ";αα" ";;;")
 
 (test "#||#" ";;;;")
