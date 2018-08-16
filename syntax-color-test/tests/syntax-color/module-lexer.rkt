@@ -9,11 +9,20 @@
   (when count? (port-count-lines! p))
   (let loop ([mode #f]
              [n 0])
+    (define-values (_line1 _col1 pos-before) (port-next-location p))
     (define-values (lexeme type data token-start token-end backup new-mode)
       (module-lexer p
                     0
                     mode))
-    (define one (list lexeme 
+    (define-values (_line2 _col2 pos-after) (port-next-location p))
+    (unless (and (or (not token-start) (<= pos-before token-start pos-after))
+                 (or (not token-end) (<= pos-before token-end pos-after)))
+      (error 'lex
+             (string-append
+              "pos-before, pos-after, token-start, and token-end aren't in the right relationship\n"
+              "  pos-before: ~s\n  token-start: ~s\n  token-end: ~s\n  pos-after: ~s")
+             pos-before token-start token-end pos-after))
+    (define one (list lexeme
                       type token-start token-end 
                       (cond
                         [(procedure? mode)
@@ -83,6 +92,13 @@
               `(;; token perhaps should be the whole string (up to the first special?)
                 ("#;" error 1 9 #f)
                 (,eof eof #f #f before-lang-line)))
+(check-equal? (lex "#;\"ü" #t)
+              `(("#;" error 1 5 #f)
+                (,eof eof #f #f before-lang-line)))
+(check-equal? (lex "#;ü" #t)
+              `(("#;" sexp-comment 1 4 #f)
+                (,eof eof #f #f before-lang-line)))
+
 (check same?
        (lex "#lang at-exp racket/base\n1\n" #t)
        `(("#lang at-exp racket/base" other 1 25 #f)
