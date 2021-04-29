@@ -282,7 +282,9 @@ end-string
 (test "#\\uaF12a" "ccccccci")
 (test "#\\uaF1g" "cccccci")
 (test "#\\UaF12a" "cccccccc")
-(test "#\\UaF12aaa" "ccccccccci")
+(test "#\\UaF12aaa" "cccccccccc")
+(test "#\\UaF12aaaa" "ccccccccccc")
+(test "#\\UaF12aaaaa" "ccccccccccci")
 (test "#\\UA" "cccc")
 
 ;; Bad Characters
