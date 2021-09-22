@@ -1,7 +1,9 @@
 #lang racket/base
 (require racket/contract/base
          racket/contract/option)
-(provide lexer/c (struct-out dont-stop))
+(provide lexer/c
+         lexer*/c
+         (struct-out dont-stop))
 
 (struct dont-stop (val) #:transparent)
 
@@ -23,6 +25,20 @@
                       [end (start type) (end/c start type)]
                       [backup exact-nonnegative-integer?]
                       [new-mode any/c])))
+   #:tester (λ (lexer) (try-some-random-streams lexer))))
+
+(define lexer*/c
+  (option/c
+   (->i ([in (and/c input-port? port-counts-lines?)]
+         [offset exact-nonnegative-integer?]
+         [mode (not/c dont-stop?)])
+        (values [txt any/c]
+                [type (or/c symbol? (and/c (hash/c symbol? any/c) immutable?))]
+                [paren (or/c symbol? #f)]
+                [start (or/c exact-positive-integer? #f)]
+                [end (start type) (end/c start type)]
+                [backup exact-nonnegative-integer?]
+                [new-mode any/c]))
    #:tester (λ (lexer) (try-some-random-streams lexer))))
 
 (define (try-some-random-streams lexer)
