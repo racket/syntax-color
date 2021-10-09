@@ -10,3 +10,6 @@
 (define pkg-desc "Program syntax coloring for editors and typesetting")
 
 (define pkg-authors '(mflatt))
+
+(define license
+  '(Apache-2.0 OR MIT))
