@@ -12,3 +12,6 @@
                      "syntax-color-lib"
                      "gui-lib"))
 (define update-implies '("syntax-color-lib"))
+
+(define license
+  '(Apache-2.0 OR MIT))
