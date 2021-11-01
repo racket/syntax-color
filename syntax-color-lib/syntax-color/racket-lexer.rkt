@@ -439,8 +439,8 @@
                       (struct-copy comment-mode mode
                                    [balance balance]))]
                  [else
-                  (case type
-                    [(white-space comment) mode]
+                  (case status
+                    [(continue) mode]
                     [else
                      (if (zero? (comment-mode-balance mode))
                          (comment-mode-prev mode)
