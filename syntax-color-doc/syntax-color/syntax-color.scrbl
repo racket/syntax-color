@@ -19,6 +19,8 @@ The @filepath{syntax-color} collection provides the underlying data
 structures and some helpful utilities for the @racket[color:text<%>]
 class of @racketmodname[framework].
 
+@table-of-contents[]
+
 @; ----------------------------------------------------------------------
 
 @section{Parenthesis Matching}
@@ -31,7 +33,7 @@ Parenthesis matching code built on top of @racket[token-tree%].
 
 @; ----------------------------------------------------------------------
 
-@section{Lexer Contract & the Don't Stop Structure Type}
+@section[#:tag "dont-stop"]{Lexer Contract and The Don't-Stop Structure Type}
 
 @defmodule[syntax-color/lexer-contract]
 
@@ -406,3 +408,8 @@ Same as @racketblock[(insert-last! tree
                                         [data v]))]
 
 This optimization is important for the colorer.}
+
+@; ----------------------------------------------------------------------
+
+@include-section["color-textoid.scrbl"]
+@include-section["racket.scrbl"]
