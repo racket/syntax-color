@@ -98,10 +98,10 @@
 
 (define (racket-grouping-position t start-pos limit mode)
   (case mode
-    [(up) (racket-up-sexp t start-pos #:limit limit)]
-    [(down) (racket-up-sexp t start-pos)]
-    [(backward) (racket-up-sexp t start-pos #:limit limit)]
-    [(forward) (racket-up-sexp t start-pos)]))
+    [(up)       (racket-up-sexp t start-pos #:limit limit)]
+    [(down)     (racket-down-sexp t start-pos)]
+    [(backward) (racket-backward-sexp t start-pos #:limit limit)]
+    [(forward)  (racket-forward-sexp t start-pos)]))
 
 ;; ----------------------------------------
 
