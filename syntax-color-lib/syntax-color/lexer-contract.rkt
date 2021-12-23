@@ -7,8 +7,8 @@
          (contract-out
           [check-colorer-results-match-port-before-and-after
            (-> symbol? any/c
-               exact-positive-integer? exact-positive-integer?
-               exact-positive-integer? exact-positive-integer?
+               (or/c exact-positive-integer? #f) (or/c exact-positive-integer? #f)
+               (or/c exact-positive-integer? #f) (or/c exact-positive-integer? #f)
                void?)]))
 
 (struct dont-stop (val) #:transparent)

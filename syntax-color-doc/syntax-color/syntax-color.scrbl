@@ -58,10 +58,10 @@ Parenthesis matching code built on top of @racket[token-tree%].
 @defproc[(check-colorer-results-match-port-before-and-afters
           [who symbol?]
           [type any/c]
-          [pos-before exact-positive-integer?]
-          [new-token-start exact-positive-integer?]
-          [new-token-end exact-positive-integer?]
-          [pos-after exact-positive-integer?])
+          [pos-before (or/c exact-positive-integer? #f)]
+          [new-token-start (or/c exact-positive-integer? #f)]
+          [new-token-end (or/c exact-positive-integer? #f)]
+          [pos-after (or/c exact-positive-integer? #f)])
          void?]{
 
  Checks that the results of a colorer make sense with
