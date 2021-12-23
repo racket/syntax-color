@@ -3,7 +3,13 @@
          racket/contract/option)
 (provide lexer/c
          lexer*/c
-         (struct-out dont-stop))
+         (struct-out dont-stop)
+         (contract-out
+          [check-colorer-results-match-port-before-and-after
+           (-> symbol? any/c
+               exact-positive-integer? exact-positive-integer?
+               exact-positive-integer? exact-positive-integer?
+               void?)]))
 
 (struct dont-stop (val) #:transparent)
 
@@ -129,3 +135,15 @@
             (>/c start))]
     [else
      #f]))
+
+(define (check-colorer-results-match-port-before-and-after
+         who type pos-before new-token-start new-token-end pos-after)
+  (unless (equal? 'eof type)
+    (unless (<= pos-before new-token-start pos-after)
+      (error who
+             "expected the token start to be between ~s and ~s, got ~s"
+             pos-before pos-after new-token-start))
+    (unless (<= pos-before new-token-end pos-after)
+      (error who
+             "expected the token end to be between ~s and ~s, got ~s"
+             pos-before pos-after new-token-end))))

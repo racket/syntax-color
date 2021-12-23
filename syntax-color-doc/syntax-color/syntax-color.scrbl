@@ -55,6 +55,42 @@ Parenthesis matching code built on top of @racket[token-tree%].
   see @xmethod[color:text<%> start-colorer].
 }
 
+@defproc[(check-colorer-results-match-port-before-and-afters
+          [who symbol?]
+          [type any/c]
+          [pos-before exact-positive-integer?]
+          [new-token-start exact-positive-integer?]
+          [new-token-end exact-positive-integer?]
+          [pos-after exact-positive-integer?])
+         void?]{
+
+ Checks that the results of a colorer make sense with
+ respect to the positions of the port, before and after the
+ lexer is called.
+
+ The @racket[pos-before] argument is expected to be the third
+ result of @racket[port-next-location] before a lexer is
+ called and the @racket[pos-after] argument is expected to to
+ be the third result of @racket[port-next-location] after the
+ lexer is called. The @racket[type], @racket[token-start],
+ and @racket[token-end] arguments should be the corresponding
+ results from the colorer (c.f.
+ @method[color:text<%> start-colorer]).
+
+ This function raises an error unless the following boolean
+ expression is true:
+ @racketblock[(or (equal? type 'eof)
+                  (and (<= pos-before new-token-start pos-after)
+                       (<= pos-before new-token-end pos-after)))]
+ but it checks the individual parts of the expression to
+ raise a more meaningful error message when some part is not
+ true.
+
+ The @racket[who] argument is used to start the error message.
+
+ @history[#:added "1.4"]
+}
+
 @section{Racket Lexer}
 
 @defmodule[syntax-color/racket-lexer]
