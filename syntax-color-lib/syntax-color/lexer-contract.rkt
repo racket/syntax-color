@@ -61,7 +61,7 @@
   (with-handlers ([exn:fail?
                    (lambda (exn)
                      (raise
-                      (make-exn
+                      (make-exn:fail
                        (format (string-append "try-some-random-streams:"
                                               " random testing of lexer failed\n"
                                               "  lexer: ~e\n"
