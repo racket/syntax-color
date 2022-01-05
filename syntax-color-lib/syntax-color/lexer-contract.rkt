@@ -37,7 +37,7 @@
   (option/c
    (or/c (->i ([in (and/c input-port? port-counts-lines?)])
               (values [txt any/c]
-                      [type symbol?]
+                      [type (or/c symbol? (hash/c symbol? any/c #:immutable #t))]
                       [paren (or/c symbol? #f)]
                       [start (or/c exact-positive-integer? #f)]
                       [end (start type) (end/c start type)]))
