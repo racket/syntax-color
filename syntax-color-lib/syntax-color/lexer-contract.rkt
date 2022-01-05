@@ -35,16 +35,22 @@
 
 (define lexer*/c
   (option/c
-   (->i ([in (and/c input-port? port-counts-lines?)]
-         [offset exact-nonnegative-integer?]
-         [mode (not/c dont-stop?)])
-        (values [txt any/c]
-                [type (or/c symbol? (hash/c symbol? any/c #:immutable #t))]
-                [paren (or/c symbol? #f)]
-                [start (or/c exact-positive-integer? #f)]
-                [end (start type) (end/c start type)]
-                [backup exact-nonnegative-integer?]
-                [new-mode any/c]))
+   (or/c (->i ([in (and/c input-port? port-counts-lines?)])
+              (values [txt any/c]
+                      [type symbol?]
+                      [paren (or/c symbol? #f)]
+                      [start (or/c exact-positive-integer? #f)]
+                      [end (start type) (end/c start type)]))
+         (->i ([in (and/c input-port? port-counts-lines?)]
+               [offset exact-nonnegative-integer?]
+               [mode (not/c dont-stop?)])
+              (values [txt any/c]
+                      [type (or/c symbol? (hash/c symbol? any/c #:immutable #t))]
+                      [paren (or/c symbol? #f)]
+                      [start (or/c exact-positive-integer? #f)]
+                      [end (start type) (end/c start type)]
+                      [backup exact-nonnegative-integer?]
+                      [new-mode any/c])))
    #:tester (λ (lexer) (try-some-random-streams lexer))))
 
 (define (try-some-random-streams lexer)
