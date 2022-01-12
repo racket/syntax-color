@@ -7,6 +7,8 @@
 
 (provide
  (contract-out
+  ;; the test suite for `racket-amount-to-indent` is in the framework's tests
+  ;; run it (and other tests) with `raco test -l framework/tests/racket`
   [racket-amount-to-indent (->* ((is-a?/c color-textoid<%>)
                                  exact-nonnegative-integer?)
                                 (#:head-sexp-type (-> string? (or/c #f 'lambda 'define 'begin 'for/fold 'other))
@@ -14,7 +16,7 @@
                                                                 exact-nonnegative-integer?
                                                                 exact-nonnegative-integer?
                                                                 (or/c #f exact-nonnegative-integer?))))
-                                (or/c #f exact-nonnegative-integer?))]
+                                exact-nonnegative-integer?)]
   [racket-tabify-table->head-sexp-type (-> (list/c hash?
                                                    (or/c #f regexp?)
                                                    (or/c #f regexp?)
@@ -28,6 +30,7 @@
                                                    (racket-tabify-table->head-sexp-type
                                                     racket-tabify-default-table)]
                                  #:graphical-width [graphical-width #f])
+
   (with-method ([last-position (t last-position)]
                 [get-character (t get-character)]
                 [get-text (t get-text)]
@@ -104,11 +107,12 @@
     (define limit (get-backward-navigation-limit pos))
     (define last-pos (last-position))
     (define para (position-paragraph pos))
+    (define para-start (paragraph-start-position para))
     (define is-tabbable?
       (and (> para 0)
-           (not (memq (classify-position (- (paragraph-start-position para) 1))
+           (not (memq (classify-position (- para-start 1))
                       '(comment string error)))))
-    (define end (if is-tabbable? (paragraph-start-position para) 0))
+    (define end (if is-tabbable? para-start 0))
 
     ;; "contains" is the start of the initial sub-S-exp
     ;;  in the S-exp that contains "pos". If pos is outside
@@ -182,14 +186,21 @@
       ;; but it seems like this shouldn't happen, because
       ;; para > 0, and `end` is the start of the paragraph,
       ;; so the revious character should be a newline
-      (send t insert #\newline (paragraph-start-position para)))
+      (send t insert #\newline para-start))
 
     (define amt-to-indent
       (cond
         [(not is-tabbable?)
-         (if (= para 0)
-             0
-             #f)]
+         (cond
+           [(= para 0) 0]
+           [else
+            (define first-non-whitespace
+              (let loop ([p para-start])
+                (define c (get-character p))
+                (cond
+                  [(char-whitespace? c) (loop (+ p 1))]
+                  [else p])))
+            (visual-offset first-non-whitespace)])]
         [(not contains)
          ;; Something went wrong matching. Should we get here?
          0]
