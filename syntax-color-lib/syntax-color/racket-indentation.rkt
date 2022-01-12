@@ -190,12 +190,6 @@
          (if (= para 0)
              0
              #f)]
-        [(let ([real-start (skip-forward-past-non-newline-whitespace end)])
-           (and (<= (+ 3 real-start) (last-position))
-                (string=? ";;;"
-                          (get-text real-start
-                                    (+ 2 real-start)))))
-         #f]
         [(not contains)
          ;; Something went wrong matching. Should we get here?
          0]
