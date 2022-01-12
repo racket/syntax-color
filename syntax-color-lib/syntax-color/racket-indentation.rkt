@@ -13,7 +13,7 @@
                                  #:graphical-width (or/c #f (-> (is-a?/c color-textoid<%>)
                                                                 exact-nonnegative-integer?
                                                                 exact-nonnegative-integer?
-                                                                exact-nonnegative-integer?)))
+                                                                (or/c #f exact-nonnegative-integer?))))
                                 (or/c #f exact-nonnegative-integer?))]
   [racket-tabify-table->head-sexp-type (-> (list/c hash?
                                                    (or/c #f regexp?)
@@ -37,30 +37,31 @@
                 [backward-match (t backward-match)]
                 [backward-containing-sexp (t backward-containing-sexp)]
                 [get-backward-navigation-limit (t get-backward-navigation-limit)])
-    (define (find-offset start-pos)
-      (define tab-char? #f)
-      (define end-pos
-        (let loop ([p start-pos])
-          (let ([c (get-character p)])
-            (cond
-              [(char=? c #\tab)
-               (set! tab-char? #t)
-               (loop (add1 p))]
-              [(char=? c #\newline)
-               p]
-              [(char-whitespace? c)
-               (loop (add1 p))]
-              [else
-               p]))))
+
+    (define (indent-first-arg start-pos)
+      (define end-pos (skip-forward-past-non-newline-whitespace start-pos))
       (define gwidth
         (cond
           [graphical-width
-           (graphical-width t start-pos end-pos)]
+           (or (graphical-width t start-pos end-pos)
+               (- end-pos start-pos))]
           [else
            ;; if there is no display available, approximate the graphical
            ;; width on the assumption that we are using a fixed-width font
            (- end-pos start-pos)]))
-      (values gwidth end-pos tab-char?))
+      gwidth)
+    (define (skip-forward-past-non-newline-whitespace start-pos)
+      (let loop ([p start-pos])
+        (let ([c (get-character p)])
+          (cond
+            [(char=? c #\tab)
+             (loop (add1 p))]
+            [(char=? c #\newline)
+             p]
+            [(char-whitespace? c)
+             (loop (add1 p))]
+            [else
+             p]))))
 
     ;; returns #t if `pos` is in a symbol (or keyword) that consists entirely
     ;; of hyphens and has at least three hyphens; returns #f otherwise
@@ -174,10 +175,6 @@
       (define proc-name (get-proc))
       (equal? proc-name 'for/fold))
 
-    (define (indent-first-arg start)
-      (define-values (gwidth curr-offset tab-char?) (find-offset start))
-      gwidth)
-
     (when (and is-tabbable?
                (not (char=? (get-character (sub1 end))
                             #\newline)))
@@ -193,7 +190,7 @@
          (if (= para 0)
              0
              #f)]
-        [(let-values ([(gwidth real-start tab-char?) (find-offset end)])
+        [(let ([real-start (skip-forward-past-non-newline-whitespace end)])
            (and (<= (+ 3 real-start) (last-position))
                 (string=? ";;;"
                           (get-text real-start
