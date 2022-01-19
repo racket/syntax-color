@@ -20,4 +20,5 @@
     classify-position
     classify-position*
     get-token-range
-    get-backward-navigation-limit))
+    get-backward-navigation-limit
+    get-regions))
