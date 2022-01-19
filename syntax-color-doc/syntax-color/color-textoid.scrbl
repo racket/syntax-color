@@ -100,5 +100,9 @@ Like @xmethod[color:text<%> get-token-range].}
 
 Like @xmethod[color:text<%> get-backward-navigation-limit].}
 
-}
+@defmethod[(get-regions)
+           (listof (list/c exact-nonnegative-integer? (or/c exact-nonnegative-integer? 'end)))]{
 
+Like @xmethod[color:text<%> get-regions].}
+
+}
