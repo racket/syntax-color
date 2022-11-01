@@ -4,6 +4,7 @@
          racket/gui/base
          rackunit)
 
+(struct before-lang-line (racket-lexer-mode) #:prefab)
 (define (lex input count? #:modes [modes (list module-lexer module-lexer*)])
   (define results
     (for/list ([lexer (in-list modes)])
@@ -32,6 +33,7 @@
                           (cond
                             [(procedure? mode)
                              `(proc ,(object-name mode))]
+                            [(before-lang-line? mode) 'before-lang-line]
                             [(and (pair? mode)
                                   (procedure? (car mode)))
                              ;; a hack: translate 'racket-lexer* shape to 'racket-lexer
@@ -94,8 +96,16 @@
               `((" " white-space 1 2 #f)
                 ("#lang BOGUS" error 2 13 before-lang-line)
                 (,eof eof #f #f no-lang-line)))
-(check-equal? (lex "#;()#lang BOGUS" #t)
-              `(("#;" sexp-comment 1 5 #f)
+(check-equal? (lex "#;()#lang BOGUS" #t #:modes (list module-lexer*))
+              `(("#;" sexp-comment 1 3 #f)
+                ("(" #hash((comment? . #t) (type . parenthesis)) 3 4 before-lang-line)
+                (")" #hash((comment? . #t) (type . parenthesis)) 4 5 before-lang-line)
+                ("#lang BOGUS" error 5 16 before-lang-line)
+                (,eof eof #f #f no-lang-line)))
+(check-equal? (lex "#;()#lang BOGUS" #t #:modes (list module-lexer))
+              `(("#;" sexp-comment 1 3 #f)
+                ("(" comment 3 4 before-lang-line)
+                (")" comment 4 5 before-lang-line)
                 ("#lang BOGUS" error 5 16 before-lang-line)
                 (,eof eof #f #f no-lang-line)))
 (check-equal? (lex "#lang BOGUS\n\"aa" #t)
@@ -103,15 +113,35 @@
                 ("\n" white-space 12 13 no-lang-line)
                 ("\"aa" error 13 16 no-lang-line)
                 (,eof eof #f #f no-lang-line)))
-(check-equal? (lex "#;(stuff" #t)
-              `(;; token perhaps should be the whole string (up to the first special?)
-                ("#;" error 1 9 #f)
+(check-equal? (lex "#;(stuff" #t #:modes (list module-lexer*))
+              `(;; this should arguably be an error, but the racket lexer doesn't make it
+                ;; an error so we inherit that behavior here
+                ("#;" sexp-comment 1 3 #f)
+                ("(" #hash((comment? . #t) (type . parenthesis)) 3 4 before-lang-line)
+                ("stuff" #hash((comment? . #t) (type . symbol)) 4 9 before-lang-line)
                 (,eof eof #f #f before-lang-line)))
-(check-equal? (lex "#;\"ü" #t)
-              `(("#;" error 1 5 #f)
+(check-equal? (lex "#;(stuff" #t #:modes (list module-lexer))
+              `(;; this should arguably be an error, but the racket lexer doesn't make it
+                ;; an error so we inherit that behavior here
+                ("#;" sexp-comment 1 3 #f)
+                ("(" comment 3 4 before-lang-line)
+                ("stuff" comment 4 9 before-lang-line)
                 (,eof eof #f #f before-lang-line)))
-(check-equal? (lex "#;ü" #t)
-              `(("#;" sexp-comment 1 4 #f)
+(check-equal? (lex "#;\"ü" #t #:modes (list module-lexer*))
+              `(("#;" sexp-comment 1 3 #f)
+                ("\"ü" #hash((comment? . #t) (type . error)) 3 5 before-lang-line)
+                (,eof eof #f #f before-lang-line)))
+(check-equal? (lex "#;\"ü" #t #:modes (list module-lexer))
+              `(("#;" sexp-comment 1 3 #f)
+                ("\"ü" error 3 5 before-lang-line)
+                (,eof eof #f #f before-lang-line)))
+(check-equal? (lex "#;ü" #t #:modes (list module-lexer*))
+              `(("#;" sexp-comment 1 3 #f)
+                ("ü" #hash((comment? . #t) (type . symbol)) 3 4 before-lang-line)
+                (,eof eof #f #f before-lang-line)))
+(check-equal? (lex "#;ü" #t #:modes (list module-lexer))
+              `(("#;" sexp-comment 1 3 #f)
+                ("ü" comment 3 4 before-lang-line)
                 (,eof eof #f #f before-lang-line)))
 
 ;; Check #; comment handling in `module-lexer` versus `module-lexer*` modes

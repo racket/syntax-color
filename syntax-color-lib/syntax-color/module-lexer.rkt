@@ -27,40 +27,39 @@ to delegate to the scheme-lexer (in the 'no-lang-line mode).
 
 |#
 
-
-(define (do-module-lexer* in offset mode filter-lexer)
+(struct before-lang-line (racket-lexer-mode) #:prefab)
+(define (do-module-lexer* in offset mode can-return-attribs-hash? filter-lexer)
   (cond
-    [(or (not mode) (eq? mode 'before-lang-line))
+    [(or (not mode) (before-lang-line? mode))
      (define lexer-port (peeking-input-port in #:init-position (+ 1 (file-position in))))
      (let-values ([(line col pos) (port-next-location in)])
        (when line 
          (port-count-lines! lexer-port)))
      (set-port-next-location-from in lexer-port)
-     (define-values (lexeme type data new-token-start new-token-end) (racket-lexer lexer-port))
+     (define-values (lexeme type data new-token-start new-token-end backup new-mode)
+       (racket-lexer* lexer-port offset
+                      (if (before-lang-line? mode)
+                          (before-lang-line-racket-lexer-mode mode)
+                          #f)))
+     (define the-type (if (symbol? type) type (hash-ref type 'type)))
+     (define is-a-comment-type? (or (equal? the-type 'comment) (equal? the-type 'white-space) (equal? the-type 'sexp-comment)))
      (cond
-       [(equal? type 'sexp-comment)
-        (define position-before-read (file-position lexer-port))
-        (define read-succeeded?
-          (with-handlers ([exn:fail:read? (λ (x) #f)])
-            (read lexer-port)
-            #t))
-        (cond
-          [read-succeeded?
-           ;; sync ports
-           (for/list ([i (in-range (file-position in) (file-position lexer-port))])
-             (read-byte-or-special in))
-           (define-values (_1 _2 new-token-end) (port-next-location in))
-           (values lexeme type data new-token-start new-token-end 0 'before-lang-line)]
-          [else
-           (copy-port in (open-output-nowhere))
-           (define-values (_1 _2 end) (port-next-location in))
-           (values "#;" 'error #f new-token-start end 0 'before-lang-line)])]
-       [(or (eq? type 'comment) (eq? type 'white-space))
+       [(or is-a-comment-type? (and (hash? type) (hash-ref type 'comment? #f)))
         (define lexer-end (file-position lexer-port))
         ;; sync ports
         (for/list ([i (in-range (file-position in) (file-position lexer-port))])
           (read-byte-or-special in))
-        (values lexeme type data new-token-start new-token-end 0 'before-lang-line)]
+        (values lexeme
+                (cond
+                  [can-return-attribs-hash?
+                   type]
+                  [is-a-comment-type?
+                   the-type]
+                  [(and (hash? type) (equal? (hash-ref type 'type) 'error))
+                   'error]
+                  [else
+                   'comment])
+                data new-token-start new-token-end backup (before-lang-line new-mode))]
        [else
         ;; look for #lang:
         (define p (peeking-input-port in #:init-position (+ 1 (file-position in))))
@@ -107,7 +106,8 @@ to delegate to the scheme-lexer (in the 'no-lang-line mode).
                 (cons the-lexer #f)
                 the-lexer))]
          
-          [(and (eq? type 'other)
+          [(and (or (equal? type 'other)
+                    (and (hash? type) (equal? (hash-ref type 'type) 'other)))
                 (string? lexeme)
                 ;; the read-language docs say that this is all it takes to commit to a #lang
                 (regexp-match #rx"^#[!l]" lexeme))
@@ -118,16 +118,20 @@ to delegate to the scheme-lexer (in the 'no-lang-line mode).
           [else 
            (for ([i (in-range (file-position in) (file-position lexer-port))])
              (read-byte-or-special in))
-           (values lexeme type data new-token-start new-token-end 0 'no-lang-line)])])]
+           (values lexeme
+                   (if can-return-attribs-hash? type (attribs->symbol type))
+                   data new-token-start new-token-end 0 'no-lang-line)])])]
     [(eq? mode 'no-lang-line)
      (let-values ([(lexeme type data new-token-start new-token-end) 
                    (racket-lexer in)])
        (values lexeme type data new-token-start new-token-end 0 'no-lang-line))]
     [(pair? mode)
      ;; #lang-selected language consumes and produces a mode:
-     (let-values ([(lexeme type data new-token-start new-token-end backup-delta new-mode) 
+     (let-values ([(lexeme type data new-token-start new-token-end backup-delta new-mode)
                    ((car mode) in offset (cdr mode))])
-       (values lexeme type data new-token-start new-token-end backup-delta 
+       (values lexeme
+               (if can-return-attribs-hash? type (attribs->symbol type))
+               data new-token-start new-token-end backup-delta
                (if (dont-stop? new-mode)
                    (dont-stop (cons (car mode) (dont-stop-val new-mode)))
                    (cons (car mode) new-mode))))]
@@ -135,29 +139,31 @@ to delegate to the scheme-lexer (in the 'no-lang-line mode).
      ;; #lang-selected language (or default) doesn't deal with modes:
      (let-values ([(lexeme type data new-token-start new-token-end) 
                    (mode in)])
-       (values lexeme type data new-token-start new-token-end 0 mode))]))
+       (values lexeme
+               (if can-return-attribs-hash? type (attribs->symbol type))
+               data new-token-start new-token-end 0 mode))]))
+
+(define (attribs->symbol type)
+  (if (hash? type)
+      (hash-ref type 'type 'unknown)
+      type))
 
 (define (module-lexer* in offset mode)
-  (do-module-lexer* in offset mode (lambda (lexer) lexer)))
+  (do-module-lexer* in offset mode #t (lambda (lexer) lexer)))
   
 (define (module-lexer in offset mode)
-  (define (attribs->symbol type)
-    (if (hash? type)
-        (hash-ref type 'type 'unknown)
-        type))
-  (define-values (lexeme type data start end backup new-mode)
-    (do-module-lexer* in offset mode (lambda (lexer)
-                                       (cond
-                                         [(eq? lexer racket-lexer*) racket-lexer]
-                                         [(not (procedure-arity-includes? lexer 3)) lexer]
-                                         [else
-                                          (procedure-rename
-                                           (lambda (in offset mode)
-                                             (define-values (lexeme type data start end backup new-mode)
-                                               (lexer in offset mode))
-                                             (values lexeme (attribs->symbol type) data start end backup new-mode))
-                                           (object-name lexer))]))))
-  (values lexeme (attribs->symbol type) data start end backup new-mode))
+  (do-module-lexer* in offset mode #f
+                    (lambda (lexer)
+                      (cond
+                        [(eq? lexer racket-lexer*) racket-lexer]
+                        [(not (procedure-arity-includes? lexer 3)) lexer]
+                        [else
+                         (procedure-rename
+                          (lambda (in offset mode)
+                            (define-values (lexeme type data start end backup new-mode)
+                              (lexer in offset mode))
+                            (values lexeme (attribs->symbol type) data start end backup new-mode))
+                          (object-name lexer))]))))
 
 (define (set-port-next-location-from src dest)
   (define-values (line col pos) (port-next-location src))
