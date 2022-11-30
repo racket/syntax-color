@@ -1,8 +1,6 @@
 #lang racket
 (require syntax-color/scribble-lexer)
 
-(define in (open-input-string "@|x #|10|#| @me[1 2 #| comment |# ]{10}"))
-
 (define current-lexer-char (make-parameter #\@))
 
 (define (color str)
