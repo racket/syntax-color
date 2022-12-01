@@ -6,6 +6,8 @@
                "parser-tools-lib"
                "option-contract-lib"))
 
+(define build-deps '("rackunit-lib"))
+
 (define pkg-desc "implementation (no documentation) part of \"syntax-color\"")
 
 (define pkg-authors '(mflatt))
