@@ -13,6 +13,9 @@
       (port-count-lines! in)
       (let loop ([mode #f])
         (let-values ([(lexeme type paren start end backup mode) (lexer in 0 mode)])
+          (when (and (= start end) (not (equal? type 'eof)))
+            (error 'color "lexer returned a token with zero width, start ~s end ~s"
+                   start end))
           (if (eq? type 'eof)
               null
               (cons (list start end type backup)
@@ -29,7 +32,7 @@
                                    (caddar l)))
                          (loop (+ (+ pos (caar l))) (cdr l)))))])
     (unless (equal? v val)
-      (eprintf "FAILED, line ~s\n" line)
+      (eprintf "FAILED, line ~s, current-lexer-char ~s\n" line (current-lexer-char))
       (cond [(string? v)
              (eprintf "~a\nexpected\n" v)]
             [else
