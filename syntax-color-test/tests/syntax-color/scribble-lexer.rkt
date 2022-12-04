@@ -56,7 +56,7 @@
            (parameterize ([current-lexer-char char])
              (test* (string-replace str "@" (string char)) len-val line))))]))
 
-(define chars '(#\@ #\+ #\- #\\ #\^))
+(define chars '(#\@ #\+ #\- #\\ #\^ #\α))
 
 (test/chars chars "x" '((1 text)))
 (test/chars chars "x{}" '((3 text)))
