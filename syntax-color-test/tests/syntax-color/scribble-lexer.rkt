@@ -276,3 +276,5 @@
                                            (4 parenthesis)))
 
 (test/chars '(#\^) "\\" '((1 text)))
+
+(test/chars (remove #\\ chars) "@|{|\\" '((3 parenthesis) (2 text)))

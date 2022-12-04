@@ -192,7 +192,7 @@
                                      (byte-rx #"^[|]" re-opener #"{")
                                      (byte-rx #".*?(?:(?=[|]"
                                               re-opener
-                                              #"[" (regexp-quote at-bytes) #"{])|(?="
+                                              #"(" (regexp-quote at-bytes) #"|{))|(?="
                                               closer
                                               #")|(?=[\r\n])|$)")
                                      '|{|  ;; Better complex paren?
