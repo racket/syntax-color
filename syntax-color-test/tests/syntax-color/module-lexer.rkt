@@ -5,6 +5,7 @@
          rackunit)
 
 (struct before-lang-line (racket-lexer-mode) #:prefab)
+(struct no-lang-line (racket-lexer-mode) #:prefab)
 (define (lex input count? #:modes [modes (list module-lexer module-lexer*)])
   (define results
     (for/list ([lexer (in-list modes)])
@@ -34,6 +35,7 @@
                             [(procedure? mode)
                              `(proc ,(object-name mode))]
                             [(before-lang-line? mode) 'before-lang-line]
+                            [(no-lang-line? mode) 'no-lang-line]
                             [(and (pair? mode)
                                   (procedure? (car mode)))
                              ;; a hack: translate 'racket-lexer* shape to 'racket-lexer
@@ -161,6 +163,25 @@
                 ("stuff" #hash((comment? . #t) (type . symbol)) 22 27 (proc racket-lexer))
                 (")" #hash((comment? . #t) (type . parenthesis)) 27 28 (proc racket-lexer))
                 (,eof eof #f #f (proc racket-lexer))))
+
+;; check sexp comment handling when in before-lang-line mode and in there-is-no-lang-line mode
+(check-equal? (lex "#;(a b)\n1\n#;(a b)" #t #:modes (list module-lexer*))
+              `(("#;" sexp-comment 1 3 #f)
+                ("(" #hash((comment? . #t) (type . parenthesis)) 3 4 before-lang-line)
+                ("a" #hash((comment? . #t) (type . symbol)) 4 5 before-lang-line)
+                (" " #hash((comment? . #t) (type . white-space)) 5 6 before-lang-line)
+                ("b" #hash((comment? . #t) (type . symbol)) 6 7 before-lang-line)
+                (")" #hash((comment? . #t) (type . parenthesis)) 7 8 before-lang-line)
+                ("\n" white-space 8 9 before-lang-line)
+                ("1" constant 9 10 before-lang-line)
+                ("\n" white-space 10 11 no-lang-line)
+                ("#;" sexp-comment 11 13 no-lang-line)
+                ("(" #hash((comment? . #t) (type . parenthesis)) 13 14 no-lang-line)
+                ("a" #hash((comment? . #t) (type . symbol)) 14 15 no-lang-line)
+                (" " #hash((comment? . #t) (type . white-space)) 15 16 no-lang-line)
+                ("b" #hash((comment? . #t) (type . symbol)) 16 17 no-lang-line)
+                (")" #hash((comment? . #t) (type . parenthesis)) 17 18 no-lang-line)
+                (,eof eof #f #f no-lang-line)))
 
 (check same?
        (lex "#lang at-exp racket/base\n1\n" #t)

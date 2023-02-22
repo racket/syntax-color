@@ -10,24 +10,26 @@
 
 #|
 
-mode : (or/c #f 'before-lang-line
-             'no-lang-line
+mode : (or/c #f
+             before-lang-line?
+             no-lang-line?
              (cons lexer mode)
              lexer)
 
 the module lexer tracks any white-space and comments before
 the #lang line (if any) explicitly by wrapping calls to the 
-scheme-lexer (in #f or 'before-lang-line mode). 
+racket-lexer (in #f or before-lang-line mode).
 Once it finds a non-white-space and non-comment
 token, it checks to see if there is a #lang line and, if so
 changes the mode to be the lexer that the #lang indicates,
 delegating to it (the last two modes listed above).
 If there is no #lang line, then it continues
-to delegate to the scheme-lexer (in the 'no-lang-line mode).
+to delegate to the racket-lexer (in the no-lang-line mode).
 
 |#
 
 (struct before-lang-line (racket-lexer-mode) #:prefab)
+(struct no-lang-line (racket-lexer-mode) #:prefab)
 (define (do-module-lexer* in offset mode can-return-attribs-hash? filter-lexer)
   (cond
     [(or (not mode) (before-lang-line? mode))
@@ -114,17 +116,17 @@ to delegate to the scheme-lexer (in the 'no-lang-line mode).
            ;; sync ports
            (for ([i (in-range (file-position in) (file-position p))])
              (read-byte-or-special in))
-           (values lexeme 'error data new-token-start end-pos 0 'no-lang-line)]
+           (values lexeme 'error data new-token-start end-pos 0 (no-lang-line #f))]
           [else 
            (for ([i (in-range (file-position in) (file-position lexer-port))])
              (read-byte-or-special in))
            (values lexeme
                    (if can-return-attribs-hash? type (attribs->symbol type))
-                   data new-token-start new-token-end 0 'no-lang-line)])])]
-    [(eq? mode 'no-lang-line)
-     (let-values ([(lexeme type data new-token-start new-token-end) 
-                   (racket-lexer in)])
-       (values lexeme type data new-token-start new-token-end 0 'no-lang-line))]
+                   data new-token-start new-token-end 0 (no-lang-line #f))])])]
+    [(no-lang-line? mode)
+     (define-values (lexeme type data new-token-start new-token-end backup new-mode)
+       (racket-lexer* in offset (no-lang-line-racket-lexer-mode mode)))
+     (values lexeme type data new-token-start new-token-end backup (no-lang-line new-mode))]
     [(pair? mode)
      ;; #lang-selected language consumes and produces a mode:
      (let-values ([(lexeme type data new-token-start new-token-end backup-delta new-mode)
