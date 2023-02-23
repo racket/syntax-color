@@ -183,6 +183,28 @@
                 (")" #hash((comment? . #t) (type . parenthesis)) 17 18 no-lang-line)
                 (,eof eof #f #f no-lang-line)))
 
+;; it is possible that the first #; comment should actually be match the results
+;; from the first (or maybe the other way around, possibly) but since the code
+;; was already working like that and we're not using this lexer much let's just
+;; leave a note here giving someone permission to change this test case....
+(check-equal? (lex "#;(a b)\n1\n#;(a b)" #t #:modes (list module-lexer))
+              `(("#;" sexp-comment 1 3 #f)
+                ("(" comment 3 4 before-lang-line)
+                ("a" comment 4 5 before-lang-line)
+                (" " white-space 5 6 before-lang-line)
+                ("b" comment 6 7 before-lang-line)
+                (")" comment 7 8 before-lang-line)
+                ("\n" white-space 8 9 before-lang-line)
+                ("1" constant 9 10 before-lang-line)
+                ("\n" white-space 10 11 no-lang-line)
+                ("#;" sexp-comment 11 13 no-lang-line)
+                ("(" parenthesis 13 14 no-lang-line)
+                ("a" symbol 14 15 no-lang-line)
+                (" " white-space 15 16 no-lang-line)
+                ("b" symbol 16 17 no-lang-line)
+                (")" parenthesis 17 18 no-lang-line)
+                (,eof eof #f #f no-lang-line)))
+
 (check same?
        (lex "#lang at-exp racket/base\n1\n" #t)
        `(("#lang at-exp racket/base" other 1 25 #f)

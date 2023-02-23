@@ -124,9 +124,15 @@ to delegate to the racket-lexer (in the no-lang-line mode).
                    (if can-return-attribs-hash? type (attribs->symbol type))
                    data new-token-start new-token-end 0 (no-lang-line #f))])])]
     [(no-lang-line? mode)
-     (define-values (lexeme type data new-token-start new-token-end backup new-mode)
-       (racket-lexer* in offset (no-lang-line-racket-lexer-mode mode)))
-     (values lexeme type data new-token-start new-token-end backup (no-lang-line new-mode))]
+     (cond
+       [can-return-attribs-hash?
+        (define-values (lexeme type data new-token-start new-token-end backup new-mode)
+          (racket-lexer* in offset (no-lang-line-racket-lexer-mode mode)))
+        (values lexeme type data new-token-start new-token-end backup (no-lang-line new-mode))]
+       [else
+        (define-values (lexeme type data new-token-start new-token-end)
+          (racket-lexer in))
+        (values lexeme type data new-token-start new-token-end 0 mode)])]
     [(pair? mode)
      ;; #lang-selected language consumes and produces a mode:
      (let-values ([(lexeme type data new-token-start new-token-end backup-delta new-mode)
