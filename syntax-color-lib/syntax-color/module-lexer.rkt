@@ -133,16 +133,19 @@ to delegate to the racket-lexer (in the no-lang-line mode).
         (define-values (lexeme type data new-token-start new-token-end)
           (racket-lexer in))
         (values lexeme type data new-token-start new-token-end 0 mode)])]
-    [(pair? mode)
+    [(or (pair? mode) (dont-stop? mode))
      ;; #lang-selected language consumes and produces a mode:
+     (define pair-mode (if (dont-stop? mode) (dont-stop-val mode) mode))
+     (define lexer (car pair-mode))
+     (define inner-mode (cdr pair-mode))
      (let-values ([(lexeme type data new-token-start new-token-end backup-delta new-mode)
-                   ((car mode) in offset (cdr mode))])
+                   (lexer in offset inner-mode)])
        (values lexeme
                (if can-return-attribs-hash? type (attribs->symbol type))
                data new-token-start new-token-end backup-delta
                (if (dont-stop? new-mode)
-                   (dont-stop (cons (car mode) (dont-stop-val new-mode)))
-                   (cons (car mode) new-mode))))]
+                   (dont-stop (cons lexer (dont-stop-val new-mode)))
+                   (cons lexer new-mode))))]
     [else
      ;; #lang-selected language (or default) doesn't deal with modes:
      (let-values ([(lexeme type data new-token-start new-token-end) 
