@@ -247,17 +247,30 @@ A lexer that only identifies @litchar{(}, @litchar{)}, @litchar{[},
 @defproc[(module-lexer [in input-port?]
                        [offset exact-nonnegative-integer?]
                        [mode (or/c #f
-                                   (-> input-port? any)
-                                   (cons/c (-> input-port? any/c any) any/c))])
-         (values (or/c string? eof-object?) 
+                                   (-> input-port? exact-nonnegative-integer?any)
+                                   (cons/c (-> input-port?
+                                               exact-nonnegative-integer?
+                                               any/c
+                                               any)
+                                           any/c))])
+         (values (or/c string? eof-object?)
                  symbol?
-                 (or/c symbol? #f) 
-                 (or/c number? #f) 
+                 (or/c symbol? #f)
+                 (or/c number? #f)
                  (or/c number? #f)
                  exact-nonnegative-integer?
-                 (or/c #f 
+                 (or/c #f
                        (-> input-port? any)
-                       (cons/c (-> input-port? any/c any) any/c)))]{
+                       (cons/c (-> input-port? exact-nonnegative-integer?
+                                   any/c
+                                   any)
+                               any/c)
+                       (struct/c dont-stop
+                                 ((cons/c (-> input-port?
+                                              exact-nonnegative-integer?
+                                              any/c
+                                              any)
+                                          any/c)))))]{
 
 Like @racket[racket-lexer], but with several differences:
 
@@ -307,7 +320,11 @@ Like @racket[racket-lexer], but with several differences:
                         [offset exact-nonnegative-integer?]
                         [mode (or/c #f
                                     (-> input-port? any)
-                                    (cons/c (-> input-port? any/c any) any/c))])
+                                    (cons/c (-> input-port?
+                                                exact-nonnegative-integer?
+                                                any/c
+                                                any)
+                                            any/c))])
          (values (or/c string? eof-object?) 
                  (or/c symbol?
                        (and/c (hash/c symbol? any/c) immutable?))
@@ -315,9 +332,19 @@ Like @racket[racket-lexer], but with several differences:
                  (or/c number? #f) 
                  (or/c number? #f)
                  exact-nonnegative-integer?
-                 (or/c #f 
+                 (or/c #f
                        (-> input-port? any)
-                       (cons/c (-> input-port? any/c any) any/c)))]{
+                       (cons/c (-> input-port?
+                                   exact-nonnegative-integer?
+                                   any/c
+                                   any)
+                               any/c)
+                       (struct/c dont-stop
+                                 ((cons/c (-> input-port?
+                                              exact-nonnegative-integer?
+                                              any/c
+                                              any)
+                                          any/c)))))]{
 
 Like @racket[module-lexer], except that the attribute result
 propagated from a language-specific lexer can be a hash table.
