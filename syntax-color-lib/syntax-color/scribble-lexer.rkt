@@ -37,7 +37,7 @@
      type]))
 
 (define (make-rx:opener #:command-char [at #\@])
-  (regexp (format "^[|]([^~aa-zA-Z0-9 \t\r\n\f\\\177-\377{]*){" (regexp-quote (string at)))))
+  (regexp (format "^[|]([^~aa-zA-Z0-9 \t\r\n\f\\\177-\377{]*){" at)))
 
 (define rxes (make-weak-hash))
 (define rx-keys (make-weak-hasheq))
