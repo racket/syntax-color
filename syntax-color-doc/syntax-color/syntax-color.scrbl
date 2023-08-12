@@ -87,8 +87,9 @@ Parenthesis matching code built on top of @racket[token-tree%].
  This function raises an error unless the following boolean
  expression is true:
  @racketblock[(or (equal? type 'eof)
-                  (and (<= pos-before new-token-start pos-after)
-                       (<= pos-before new-token-end pos-after)))]
+                  (and (= pos-before new-token-start)
+                       (< new-token-start new-token-end)
+                       (= new-token-end pos-after)))]
  but it checks the individual parts of the expression to
  raise a more meaningful error message when some part is not
  true.

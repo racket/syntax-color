@@ -22,8 +22,9 @@
                  0
                  mode))
         (define-values (_line2 _col2 pos-after) (port-next-location p))
-        (unless (and (or (not token-start) (<= pos-before token-start pos-after))
-                     (or (not token-end) (<= pos-before token-end pos-after)))
+        (unless (and (or (not token-start) (= pos-before token-start))
+                     (or (not token-end) (= token-end pos-after))
+                     (or (not token-start) (not token-end) (equal? type 'eof) (< token-start token-end)))
           (error 'lex
                  (string-append
                   "pos-before, pos-after, token-start, and token-end aren't in the right relationship\n"

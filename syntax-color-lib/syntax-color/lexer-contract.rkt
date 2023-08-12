@@ -229,11 +229,16 @@
 (define (check-colorer-results-match-port-before-and-after
          who type pos-before new-token-start new-token-end pos-after)
   (unless (equal? 'eof type)
-    (unless (<= pos-before new-token-start pos-after)
+    (unless (= pos-before new-token-start)
       (error who
-             "expected the token start to be between ~s and ~s, got ~s"
-             pos-before pos-after new-token-start))
-    (unless (<= pos-before new-token-end pos-after)
+             "token start expected to match port position before reading\n  token-start: ~e\n  port-position: ~s"
+             new-token-start pos-before))
+    (unless (= pos-after new-token-end)
       (error who
-             "expected the token end to be between ~s and ~s, got ~s"
-             pos-before pos-after new-token-end))))
+             "token end expected to match port position afterwards\n  token-end: ~e\n  port-position: ~s"
+             "expected the token end to be ~s, got ~s"
+             new-token-end pos-after))
+    (unless (< new-token-start new-token-end)
+      (error who
+             "expected the token start to be strictly less than the token end\n  token-start: ~e\n  token-end: ~e"
+             new-token-start new-token-end))))
