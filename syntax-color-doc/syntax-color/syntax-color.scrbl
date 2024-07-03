@@ -426,7 +426,7 @@ total length of preceding nodes.
 
 FIXME: many methods are not yet documented.
 
- @defconstructor[([len (or/c exact-nonnegative-integer? fasle/c)]
+ @defconstructor[([len (or/c exact-nonnegative-integer? #f)]
                   [data any/c])]{
   Creates a token tree with a single element.
  }
