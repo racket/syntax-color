@@ -1,5 +1,6 @@
 #lang scribble/manual
 @(require (for-label racket/base
+                     racket/contract
                      syntax-color/color-textoid
                      racket/gui/base
                      framework))
@@ -101,7 +102,8 @@ Like @xmethod[color:text<%> get-token-range].}
 Like @xmethod[color:text<%> get-backward-navigation-limit].}
 
 @defmethod[(get-regions)
-           (listof (list/c exact-nonnegative-integer? (or/c exact-nonnegative-integer? 'end)))]{
+           (listof (list/c exact-nonnegative-integer?
+                           (or/c exact-nonnegative-integer? 'end)))]{
 
 Like @xmethod[color:text<%> get-regions].}
 
