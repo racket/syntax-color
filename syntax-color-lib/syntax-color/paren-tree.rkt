@@ -178,7 +178,7 @@
       ;; starting and stoping positions for error highlighting.
       ;; If all three return #f, then there was no tree to search, or 
       ;; the position did not immediately follow a close.
-      (define/public (match-backward pos)
+      #;(define/public (match-backward pos)
         (define (not-found)
           (send tree search! pos)
           (values (- pos (paren-length (send tree get-root-data))) pos #t))
@@ -225,29 +225,33 @@
                [else
                 (values #f #f #f)]))]))
 
-      #;(define/public (match-backward pos)
-        (send tree search! (if (> pos 0) (sub1 pos) pos))
+      (define/public (match-backward pos)
         (cond
-          ((and (not (send tree is-empty?))
-                (is-close? (paren-type (send tree get-root-data)))
-                (= (+ (paren-length (send tree get-root-data))
-                      (send tree get-root-start-position))
-                   pos))
-           (let ((end
-                  (let/ec ret
-                    (do-match-backward (node-left (send tree get-root))
-                                       0
-                                       (list (paren-type (send tree get-root-data)))
-                                       ret)
-                    #f)))
-             (cond
-               (end
-                (values end pos #f))
-               (else
-                (send tree search! pos)
-                (values (- pos (paren-length (send tree get-root-data))) pos #t)))))
-          (else
-           (values #f #f #f))))
+          [(hash-ref back-cache pos #f) => (λ (res) (values res pos #f))]
+          [else
+           (send tree search! (if (> pos 0) (sub1 pos) pos))
+           (cond
+             ((and (not (send tree is-empty?))
+                   (is-close? (paren-type (send tree get-root-data)))
+                   (= (+ (paren-length (send tree get-root-data))
+                         (send tree get-root-start-position))
+                      pos))
+              (let ((end
+                     (let/ec ret
+                       (do-match-backward (node-left (send tree get-root))
+                                          0
+                                          (list (paren-type (send tree get-root-data)))
+                                          ret)
+                       #f)))
+                (cond
+                  (end
+                   (hash-set! back-cache pos end)
+                   (values end pos #f))
+                  (else
+                   (send tree search! pos)
+                   (values (- pos (paren-length (send tree get-root-data))) pos #t)))))
+             (else
+              (values #f #f #f)))]))
       
       ;; is-open-pos?: natural-number -> (union #f symbol)
       ;; if the position starts an open, return the corresponding close,
