@@ -250,3 +250,122 @@
  (set! t (new paren-tree% (matches '((|(| |)|) (|[| |]|)))))
  (send t add-token '|)| 2)
  (test-match-backward t 2 '(0 2 #t)))
+
+(test-case
+ "invisible-parens 1"
+ (define t (new paren-tree% (matches '((|(| |)|) (|[| |]|)))))
+ (send t add-token #f 1 #:invisible-opens 1)
+ (send t add-token #f 1 #:invisible-opens 1)
+ (send t add-token #f 1 #:invisible-closes 1)
+ (send t add-token #f 1 #:invisible-closes 1)
+ (check-equal? (call-with-values (λ () (send t match-forward 0)) list) (list #f #f #f))
+ (check-equal? (call-with-values (λ () (send t match-forward 0 #:invisible 1)) list) (list 0 4 #f))
+ (check-equal? (call-with-values (λ () (send t match-forward 1)) list) (list #f #f #f))
+ (check-equal? (call-with-values (λ () (send t match-forward 1 #:invisible 1)) list) (list 1 3 #f)))
+
+(test-case
+ "invisible-parens double on closing"
+ (define t (new paren-tree% (matches '((|(| |)|) (|[| |]|)))))
+ (send t add-token #f 1 #:invisible-opens 1)
+ (send t add-token #f 1 #:invisible-opens 1)
+ (send t add-token #f 1 #:invisible-closes 2)
+ (check-equal? (call-with-values (λ () (send t match-forward 0 #:invisible 1)) list) (list 0 3 #f))
+ (check-equal? (call-with-values (λ () (send t match-forward 1 #:invisible 1)) list) (list 1 3 #f))
+ (check-equal? (call-with-values (λ () (send t match-backward 3 #:invisible 2)) list) (list 0 3 #f))
+ (check-equal? (call-with-values (λ () (send t match-backward 3 #:invisible 1)) list) (list 1 3 #f))
+ (check-equal? (call-with-values (λ () (send t match-backward 3 #:invisible 'all)) list) (list 0 3 #f))
+ (check-equal? (call-with-values (λ () (send t match-forward 0 #:invisible 'all)) list) (list 0 3 #f)))
+
+(test-case
+ "invisible-parens double on opening"
+ (define t (new paren-tree% (matches '((|(| |)|) (|[| |]|)))))
+ (send t add-token #f 1 #:invisible-opens 2)
+ (send t add-token #f 1 #:invisible-closes 1)
+ (send t add-token #f 1 #:invisible-closes 1)
+ (check-equal? (call-with-values (λ () (send t match-forward 0 #:invisible 2)) list) (list 0 3 #f))
+ (check-equal? (call-with-values (λ () (send t match-forward 0 #:invisible 1)) list) (list 0 2 #f))
+ (check-equal? (call-with-values (λ () (send t match-forward 1 #:invisible 1)) list) (list #f #f #f))
+ (check-equal? (call-with-values (λ () (send t match-backward 3 #:invisible 'all)) list) (list 0 3 #f))
+ (check-equal? (call-with-values (λ () (send t match-forward 0 #:invisible 'all)) list) (list 0 3 #f)))
+
+
+(test-case
+ "invisible-parens 3"
+ ;; this test case is supposed to match Rhombus's `(x): 1` where
+ ;; there are the visible parens, and then two invisible ones, one
+ ;; that goes from the first to the last position and one that goes
+ ;; from the colon to the last position.
+ (define t (new paren-tree% (matches '((|(| |)|) (|[| |]|)))))
+ (send t add-token '|(| 1 #:invisible-opens 1)
+ (send t add-token #f 1)
+ (send t add-token '|)| 1)
+ (send t add-token #f 1 #:invisible-opens 1)
+ (send t add-token #f 1)
+ (send t add-token #f 1 #:invisible-closes 2)
+ (check-equal? (call-with-values (λ () (send t match-forward 0)) list) (list 0 3 #f))
+ (check-equal? (call-with-values (λ () (send t match-forward 0 #:invisible 0)) list) (list 0 3 #f))
+ (check-equal? (call-with-values (λ () (send t match-forward 0 #:invisible 1)) list) (list 0 6 #f))
+ (check-equal? (call-with-values (λ () (send t match-backward 3)) list) (list 0 3 #f))
+ (check-equal? (call-with-values (λ () (send t match-backward 3 #:invisible 0)) list) (list 0 3 #f))
+ (check-equal? (call-with-values (λ () (send t match-backward 6 #:invisible 1)) list) (list 3 6 #f))
+ (check-equal? (call-with-values (λ () (send t match-backward 6 #:invisible 2)) list) (list 0 6 #f)))
+
+(test-case
+ "invisible-parens 4"
+ (define t (new paren-tree% (matches '((|(| |)|) (|[| |]|)))))
+ (send t add-token '|(| 1)
+ (send t add-token #f 1 #:invisible-opens 1)
+ (send t add-token #f 1 #:invisible-closes 1)
+ (send t add-token #f 100)
+ (send t add-token '|)| 1)
+ (check-equal? (call-with-values (λ () (send t match-forward 1 #:invisible 1)) list) '(1 3 #f))
+ (check-equal? (call-with-values (λ () (send t match-forward 0 #:invisible 0)) list) '(0 104 #f)))
+
+(test-case
+ "invisible-parens open/close on same token"
+ (define t (new paren-tree% (matches '((|(| |)|) (|[| |]|)))))
+ (send t add-token #f 1 #:invisible-opens 1 #:invisible-closes 1)
+ (check-equal? (call-with-values (λ () (send t match-forward 0 #:invisible 2)) list) '(0 1 #f))
+ (check-equal? (call-with-values (λ () (send t match-forward 0 #:invisible 1)) list) '(0 1 #f))
+ (check-equal? (call-with-values (λ () (send t match-forward 0 #:invisible 0)) list) '(0 1 #f))
+ (check-equal? (call-with-values (λ () (send t match-backward 1 #:invisible 2)) list) '(0 1 #f))
+ (check-equal? (call-with-values (λ () (send t match-backward 1 #:invisible 1)) list) '(0 1 #f))
+ (check-equal? (call-with-values (λ () (send t match-backward 1 #:invisible 0)) list) '(0 1 #f)))
+
+(test-case
+ "invisible-count inside a token"
+ (define t (new paren-tree% (matches '((|(| |)|) (|[| |]|)))))
+ (send t add-token #f 3 #:invisible-opens 2)
+ (send t add-token #f 3 #:invisible-closes 2)
+ (check-equal? (call-with-values (λ () (send t get-invisible-count 0)) list) '(2 0))
+ (check-equal? (call-with-values (λ () (send t get-invisible-count 1)) list) '(0 0))
+ (check-equal? (call-with-values (λ () (send t get-invisible-count 2)) list) '(0 0))
+ (check-equal? (call-with-values (λ () (send t get-invisible-count 3)) list) '(0 2))
+ (check-equal? (call-with-values (λ () (send t get-invisible-count 4)) list) '(0 0))
+ (check-equal? (call-with-values (λ () (send t get-invisible-count 5)) list) '(0 0)))
+
+(test-case
+ "example of\n```\nblock:\n 1+2\n 3+4\n```\n"
+ (define t (new paren-tree% (matches '((|(| |)|) (|[| |]|)))))
+ (send t add-token #f 5 #:invisible-opens 2 #:invisible-closes 0) ;; 0
+ (send t add-token #f 1 #:invisible-opens 0 #:invisible-closes 0) ;; 5
+ (send t add-token #f 1 #:invisible-opens 0 #:invisible-closes 0) ;; 6
+ (send t add-token #f 1 #:invisible-opens 0 #:invisible-closes 0) ;; 7
+ (send t add-token #f 1 #:invisible-opens 2 #:invisible-closes 0) ;; 8
+ (send t add-token #f 1 #:invisible-opens 0 #:invisible-closes 0) ;; 9
+ (send t add-token #f 1 #:invisible-opens 0 #:invisible-closes 1) ;; 10
+ (send t add-token #f 1 #:invisible-opens 0 #:invisible-closes 0) ;; 11
+ (send t add-token #f 1 #:invisible-opens 0 #:invisible-closes 0) ;; 12
+ (send t add-token #f 1 #:invisible-opens 1 #:invisible-closes 0) ;; 13
+ (send t add-token #f 1 #:invisible-opens 0 #:invisible-closes 0) ;; 14
+ (send t add-token #f 1 #:invisible-opens 0 #:invisible-closes 4) ;; 15
+ (send t add-token #f 1 #:invisible-opens 0 #:invisible-closes 0) ;; 16
+ (check-equal? (call-with-values (λ () (send t match-forward 10 #:invisible 1)) list) '(#f #f #f))
+ (check-equal? (call-with-values (λ () (send t match-forward 10 #:invisible 0)) list) '(#f #f #f))
+ (check-equal? (call-with-values (λ () (send t match-backward 14 #:invisible 0)) list) '(#f #f #f))
+ (check-equal? (call-with-values (λ () (send t match-forward 8 #:invisible 2)) list) '(8 16 #f))
+ (check-equal? (call-with-values (λ () (send t match-forward 8 #:invisible 1)) list) '(8 11 #f))
+ (check-equal? (call-with-values (λ () (send t match-backward 11 #:invisible 1)) list) '(8 11 #f))
+ (check-equal? (call-with-values (λ () (send t match-forward 13 #:invisible 1)) list) '(13 16 #f))
+ (check-equal? (call-with-values (λ () (send t match-backward 16 #:invisible 1)) list) '(13 16 #f))
+ )

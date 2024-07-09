@@ -1,10 +1,29 @@
 #lang racket/base
   (require racket/class
            racket/list
+           racket/match
+           racket/math
+           racket/bool
            "token-tree.rkt")
   
-  (provide paren-tree%)
-  
+(provide paren-tree%)
+
+;; invisible parens are used in two ways, they end up in the stack
+;; as pushes and pops happen as the buffer is traversed, and they
+;; are also "placeholders" in `paren` structs that indiciate if
+;; they are open or closes
+(struct invisible-paren ())
+(define-values (invisible-open invisible-close)
+  (let ()
+    (struct invisible-open invisible-paren ())
+    (struct invisible-close invisible-paren ())
+    (values (invisible-open) (invisible-close))))
+
+;; type : a symbol in `matches` or invisible-paren?
+;; length : natural
+;; invisible-opens, invisible-closes : natural
+(define-struct paren (type length invisible-opens invisible-closes) #:transparent)
+
   (define paren-tree%
     (class object%
 
@@ -23,7 +42,7 @@
                 matches)
       
       (define back-cache (make-hasheq))
-      (define (reset-cache) (set! back-cache (make-hasheq)))
+      (define/private (reset-cache) (set! back-cache (make-hasheq)))
       
       (define/private (is-open? x)
         (hash-ref open-matches-table x #f))
@@ -32,8 +51,10 @@
         (hash-ref close-matches-table x #f))
       
       (define/private (matches? open close)
-        (equal? (hash-ref open-matches-table open #f)
-                close))
+        (or (equal? (hash-ref open-matches-table open #f)
+                    close)
+            (and (invisible-paren? open) (invisible-paren? close)
+                 (not (equal? open close)))))
 
       ;; The tree and invalid-tree splay trees map ranges of text to paren
       ;; records whose type field is a symbol that indicates which type of
@@ -43,30 +64,32 @@
       ;; with a parenthesis (that is, the region before the first parenthesis in
       ;; a buffer), the type will be #f, and the length will be 0.
       
-      (define-struct paren (type length))
       (define tree (new token-tree%))
       (define invalid-tree (new token-tree%))
       
       (define common-parens
-        (list (make-paren '|(| 1)
-              (make-paren '|)| 1)
-              (make-paren '|]| 1)
-              (make-paren '|[| 1)
-              (make-paren '|}| 1)
-              (make-paren '|{| 1)))
-      (define false-zero-paren (make-paren #f 0))
+        (list (make-paren '|(| 1 0 0)
+              (make-paren '|)| 1 0 0)
+              (make-paren '|]| 1 0 0)
+              (make-paren '|[| 1 0 0)
+              (make-paren '|}| 1 0 0)
+              (make-paren '|{| 1 0 0)))
+      (define false-zero-paren (make-paren #f 0 0 0))
       
-      (define (build-paren type len)
+      (define/private (build-paren type len invisible-opens invisible-closes)
         (cond
+          [(or (not (zero? invisible-opens))
+               (not (zero? invisible-closes)))
+           (make-paren type len invisible-opens invisible-closes)]
           [(eq? len 1)
            (or (ormap (λ (cp) (and (equal? (paren-type cp) type)
                                    cp))
                       common-parens)
-               (make-paren type len))]
+               (make-paren type len 0 0))]
           [(and (eq? length 0) (eq? type #f))
            false-zero-paren]
           [else
-           (make-paren type len)]))
+           (make-paren type len invisible-opens invisible-closes)]))
         
       (define/private (split tree pos)
         (send tree search! pos)
@@ -82,7 +105,7 @@
                  (send first add-to-root-length (- pos first-end))
                  (insert-first! next (new token-tree%
                                           (length (- first-end pos))
-                                          (data (build-paren #f 0))))
+                                          (data (build-paren #f 0 0 0))))
                  (values first next)))))))
       
       ;; split-tree: natural-number -> void
@@ -110,22 +133,44 @@
             (send good remove-root!))
           (insert-last! tree good)))
       
-      
-      ;; add-token: (union #f symbol) * natural-number ->
+      ;; add-token: (->* ((or/c #f symbol invisible-paren?)
+      ;;                  natural?)
+      ;;                 (#:invisible-opens (or/c #f natural?)
+      ;;                  #:invisible-closes (or/c #f natural?))
+      ;;                 void?)
       ;; Adds the token to the end of the valid part of the tree.
       ;; If type is #f, then this is not a parenthesis token.  If it is a symbol, then
       ;; it should be in one of the pairs in the matches field.
-      (define/public (add-token type length)
+      (define/public (add-token type length
+                                #:invisible-opens [invisible-opens 0]
+                                #:invisible-closes [invisible-closes 0])
+        (unless (or (symbol? type)
+                    (not type))
+          (raise-argument-error 'add-token "(or/c #f symbol?)" 0
+                                type length invisible-opens invisible-closes))
+        (unless (natural? length)
+          (raise-argument-error 'add-token "natural?" 1
+                                type length invisible-opens invisible-closes))
+        (unless (natural? invisible-opens)
+          (raise-argument-error 'add-token "natural?" 2
+                                type length invisible-opens invisible-closes))
+        (unless (natural? invisible-closes)
+          (raise-argument-error 'add-token "natural?" 3
+                                type length invisible-opens invisible-closes))
         (reset-cache)
         (cond
-          ((or (send tree is-empty?) (is-open? type) (is-close? type))
+          [(or (is-open? type) (is-close? type)
+               (not (zero? invisible-opens)) (not (zero? invisible-closes)))
            ; Big performance increase using the -spec version.
            ;(insert-last! tree (new token-tree% (length length) (data (cons type length))))
-           (insert-last-spec! tree length 
-                              (build-paren type (if type length 0))))
-          (else
+           (insert-last-spec! tree length
+                              (build-paren type length
+                                           invisible-opens invisible-closes))]
+          [(send tree is-empty?)
+           (insert-last-spec! tree length (build-paren type 0 0 0))]
+          [else
            (send tree search-max!)
-           (send tree add-to-root-length length))))
+           (send tree add-to-root-length length)]))
 
       ;; truncate: natural-number ->
       ;; removes the tokens after pos
@@ -134,6 +179,38 @@
         (let-values (((l r) (split tree pos)))
           (set! tree l)))
         
+      (define/public (get-invisible-count pos)
+        (send tree search! pos)
+        (define rd (send tree get-root-data))
+        (cond
+          [(= (send tree get-root-start-position) pos)
+           (match rd
+             [(paren type length invisible-opens invisible-closes)
+              (values invisible-opens invisible-closes)]
+             [#f (values 0 0)])]
+          [else
+           (values 0 0)]))
+
+      ;; is-open-pos?: natural-number -> (union #f symbol)
+      ;; if the position starts an open, return the corresponding close,
+      ;; otherwise return #f
+      (define/public (is-open-pos? pos)
+        (send tree search! pos)
+        (define d (send tree get-root-data))
+        (and (= (send tree get-root-start-position) pos)
+             d
+             (is-open? (paren-type d))))
+
+      ;; is-close-pos?: natural-number -> (union #f symbol)
+      ;; if the position starts an close, return the corresponding open,
+      ;; otherwise return #f
+      (define/public (is-close-pos? pos)
+        (send tree search! pos)
+        (let ((d (send tree get-root-data)))
+          (and (= (send tree get-root-start-position) pos)
+               d
+               (is-close? (paren-type d)))))
+
       ;; match-forward: natural-number? -> (union #f natural-number)^3
       ;; The first return is the starting position of the open-paren
       ;; The second return is the position of the closing paren.
@@ -145,29 +222,59 @@
       ;; starting and stoping positions for error highlighting.
       ;; If all three return #f, then there was no tree to search, or 
       ;; the position did not immediately precede an open.
-      (define/public (match-forward pos)
+      (define/public (match-forward pos #:invisible [_invisible #f])
+        (check-arguments 'match-forward pos _invisible)
         (send tree search! pos)
+        (define rd (send tree get-root-data))
+        (define invisible (if (and rd (equal? _invisible 'all))
+                              (+ (paren-invisible-opens rd)
+                                 (paren-invisible-closes rd))
+                              _invisible))
+        (define type (and rd (paren-type rd)))
         (cond
           ((and (not (send tree is-empty?))
-                (is-open? (paren-type (send tree get-root-data)))
+                rd
+                (or (is-open? type)
+                    (and invisible
+                         (not (zero? (paren-invisible-opens rd)))
+                         (<= invisible
+                             (+ (paren-invisible-opens rd)
+                                (paren-invisible-closes rd)))))
                 (= (send tree get-root-start-position) pos))
-           (let ((end
-                  (let/ec ret
-                    (do-match-forward (node-right (send tree get-root))
-                                      (send tree get-root-end-position)
-                                      (list (paren-type (send tree get-root-data)))
-                                      ret)
-                    #f)))
+           (define initial-stack
+             (initial-forward-stack invisible rd))
+           (define end
              (cond
-               (end
-                (values pos end #f))
-               (else
-                (send tree search-max!)
-                (let ((end (send tree get-root-end-position)))
-                  (send tree search! pos)
-                  (values pos (+ pos (paren-length (send tree get-root-data))) end))))))
+               [(not initial-stack)
+                #f]
+               [(empty? initial-stack)
+                (+ pos (paren-length rd))]
+               [else
+                (let/ec ret
+                  (do-match-forward (node-right (send tree get-root))
+                                    (send tree get-root-end-position)
+                                    initial-stack
+                                    invisible
+                                    ret)
+                  #f)]))
+           (cond
+             (end
+              (values pos end #f))
+             (else
+              (send tree search-max!)
+              (let ((end (send tree get-root-end-position)))
+                (send tree search! pos)
+                (values pos (+ pos (paren-length (send tree get-root-data))) end)))))
           (else
            (values #f #f #f))))
+
+      (define/private (check-arguments who pos invisible)
+        (unless (natural? pos)
+          (raise-argument-error who "natural?" 0 pos invisible))
+        (unless (or (not invisible)
+                    (equal? invisible 'all)
+                    (natural? invisible))
+          (raise-argument-error who "(or/c #f natural? 'all)" 1 pos invisible)))
       
       ;; match-backward: natural-number? -> (union #f natural-number)^3
       ;; The first return is the starting position of the open-paren
@@ -178,144 +285,174 @@
       ;; starting and stoping positions for error highlighting.
       ;; If all three return #f, then there was no tree to search, or 
       ;; the position did not immediately follow a close.
-      #;(define/public (match-backward pos)
-        (define (not-found)
-          (send tree search! pos)
-          (values (- pos (paren-length (send tree get-root-data))) pos #t))
-        (define already (hash-ref back-cache pos 'todo))
+      (define/public (match-backward pos #:invisible [_invisible #f])
+        (check-arguments 'match-backward pos _invisible)
         (cond
-          [(not (eq? 'todo already)) (values already pos #f)]
-          [else
-           (send tree search! (max 0 (sub1 pos)))
-           (let ([type (send tree get-root-data)])
-             (cond
-               [(and (not (send tree is-empty?))
-                     (is-close? (paren-type type))
-                     (= (+ (paren-length (send tree get-root-data))
-                           (send tree get-root-start-position))
-                        pos))
-                (let loop ()
-                  (let ([p (send tree get-root-start-position)])
-                    (cond
-                      [(= 0 p) (not-found)]
-                      [else
-                       (send tree search! (sub1 p))
-                       (let ([prev-type (paren-type (send tree get-root-data))]
-                             [prev-start-pos (send tree get-root-start-position)])
-                         (cond
-                           [(and (is-open? prev-type) (matches? prev-type (paren-type type)))
-                            (hash-set! back-cache pos prev-start-pos)
-                            (values prev-start-pos pos #f)]
-                           [(is-close? prev-type)
-                            (let-values ([(new-start new-end new-err)
-                                          (match-backward (+ prev-start-pos 
-                                                             (paren-length (send tree get-root-data))))])
-                              (cond
-                                [new-err
-                                 (not-found)]
-                                [(and (not new-start) (not new-end) (not new-err))
-                                 (error 'colorer-internal)]
-                                [else
-                                 (send tree search! new-start)
-                                 (loop)]))]
-                           [(is-open? prev-type)
-                            (not-found)]
-                           [else 
-                            (loop)]))])))]
-               [else
-                (values #f #f #f)]))]))
-
-      (define/public (match-backward pos)
-        (cond
-          [(hash-ref back-cache pos #f) => (λ (res) (values res pos #f))]
+          [(and (not _invisible) (hash-ref back-cache pos #f))
+           => (λ (res) (values res pos #f))]
           [else
            (send tree search! (if (> pos 0) (sub1 pos) pos))
+           (define rd (send tree get-root-data))
+           (define invisible (if (and rd (equal? _invisible 'all))
+                                 (+ (paren-invisible-opens rd)
+                                    (paren-invisible-closes rd))
+                                 _invisible))
+           (define type (and rd (paren-type rd)))
            (cond
              ((and (not (send tree is-empty?))
-                   (is-close? (paren-type (send tree get-root-data)))
-                   (= (+ (paren-length (send tree get-root-data))
+                   rd
+                   (or (is-close? type)
+                       (and invisible
+                            (not (zero? (paren-invisible-closes rd)))
+                            (<= invisible
+                                (+ (paren-invisible-opens rd)
+                                   (paren-invisible-closes rd)))))
+                   (= (+ (paren-length rd)
                          (send tree get-root-start-position))
                       pos))
-              (let ((end
-                     (let/ec ret
-                       (do-match-backward (node-left (send tree get-root))
-                                          0
-                                          (list (paren-type (send tree get-root-data)))
-                                          ret)
-                       #f)))
+              (define initial-stack (initial-backward-stack invisible rd))
+              (define end
                 (cond
-                  (end
-                   (hash-set! back-cache pos end)
-                   (values end pos #f))
-                  (else
-                   (send tree search! pos)
-                   (values (- pos (paren-length (send tree get-root-data))) pos #t)))))
+                  [(not initial-stack)
+                   #f]
+                  [(empty? initial-stack)
+                   (- pos (paren-length rd))]
+                  [else
+                   (let/ec ret
+                     (do-match-backward (node-left (send tree get-root))
+                                        0
+                                        initial-stack
+                                        invisible
+                                        ret)
+                     #f)]))
+              (cond
+                (end
+                 (unless invisible (hash-set! back-cache pos end))
+                 (values end pos #f))
+                (else
+                 (send tree search! pos)
+                 (values (- pos (paren-length (send tree get-root-data))) pos #t))))
              (else
               (values #f #f #f)))]))
-      
-      ;; is-open-pos?: natural-number -> (union #f symbol)
-      ;; if the position starts an open, return the corresponding close,
-      ;; otherwise return #f
-      (define/public (is-open-pos? pos)
-        (send tree search! pos)
-        (let ((d (send tree get-root-data)))
-          (and (= (send tree get-root-start-position) pos)
-               d
-               (is-open? (paren-type d)))))
 
-      ;; is-close-pos?: natural-number -> (union #f symbol)
-      ;; if the position starts an close, return the corresponding open,
-      ;; otherwise return #f
-      (define/public (is-close-pos? pos)
-        (send tree search! pos)
-        (let ((d (send tree get-root-data)))
-          (and (= (send tree get-root-start-position) pos)
-               d
-               (is-close? (paren-type d)))))
+      (define/private (initial-backward-stack invisible td)
+        (match td
+          [(paren data _ invisible-opens invisible-closes)
+           (if invisible
+               (pop-invisibles invisible-open
+                               (min invisible invisible-opens)
+                               (maybe-push1 data
+                                            (push-invisibles invisible-close
+                                                             (max 0 (min (- invisible invisible-opens) invisible-closes))
+                                                             '())))
+               (maybe-push1 data '()))]))
+
+      (define/private (do-match-forward node top-offset stack invisible? escape)
+        (cond
+          [(not node) stack]
+          [else
+           (define td (node-token-data node))
+           (define type (paren-type td))
+           (define new-stack
+             (let* ([stack (do-match-forward (node-left node) top-offset stack invisible? escape)]
+                    [stack
+                     (if invisible?
+                         (push-invisibles invisible-open (paren-invisible-opens td) stack)
+                         stack)]
+                    [stack
+                     (cond
+                       [(is-open? type)
+                        (cons type stack)]
+                       [(is-close? type)
+                        (pop1 type stack)]
+                       [else stack])]
+                    [_ (unless stack (escape #f))]
+                    [stack
+                     (if invisible?
+                         (pop-invisibles invisible-close (paren-invisible-closes td) stack)
+                         stack)])
+               (unless stack (escape #f))
+               stack))
+           (define start (+ top-offset (node-left-subtree-length node)))
+           (cond
+             [(null? new-stack)
+              (define loc (+ start (paren-length (node-token-data node))))
+              (escape loc)]
+             [else
+              (do-match-forward (node-right node) (+ start (node-token-length node)) new-stack invisible? escape)])]))
+
+      (define/private (initial-forward-stack invisible td)
+        (match td
+          [(paren data _ invisible-opens invisible-closes)
+           (if invisible
+               (pop-invisibles invisible-close
+                               (min invisible invisible-closes)
+                               (maybe-push1 data
+                                            (push-invisibles invisible-open
+                                                             (max 0 (min (- invisible invisible-closes) invisible-opens))
+                                                             '())))
+               (maybe-push1 data '()))]))
+
+      (define/private (push-invisibles item count stack)
+        (for/fold ([stack stack])
+                  ([i (in-range count)])
+          (cons item stack)))
+
+      (define/private (maybe-push1 data stack)
+        (if data
+            (cons data stack)
+            stack))
+
+      (define/private (pop-invisibles item count stack)
+        (for/fold ([stack stack])
+                  ([invisibles (in-range count)])
+          (and stack (pop1 item stack))))
+
+      (define/private (pop1 type stack)
+        (match stack
+          ['() '()]
+          [(cons tos stack)
+           (if (if (is-open? tos)
+                   (matches? tos type)
+                   (matches? type tos))
+               stack
+               #f)]))
       
-      (define/private (do-match-forward node top-offset stack escape)
+      (define/private (do-match-backward node top-offset stack invisible? escape)
         (cond
           ((not node) stack)
           (else
-           (let* ((type (paren-type (node-token-data node)))
-                  (left-stack (do-match-forward (node-left node) top-offset stack escape))
-                  (new-stack
-                   (cond
-                     ((is-open? type) (cons type left-stack))
-                     ((and (is-close? type) (matches? (car left-stack) type))
-                      (cdr left-stack))
-                     ((is-close? type) (escape #f))
-                     (else left-stack)))
-                  (start (+ top-offset (node-left-subtree-length node))))
-             (cond
-               ((null? new-stack)
-                (let ((loc (+ start (paren-length (node-token-data node)))))
-                  (escape loc)))
-               (else
-                (do-match-forward (node-right node) (+ start (node-token-length node)) new-stack escape)))))))
-      
-      
-      (define/private (do-match-backward node top-offset stack escape)
-        (cond
-          ((not node) stack)
-          (else
-           (let* ((type (paren-type (node-token-data node)))
-                  (right-stack (do-match-backward (node-right node)
-                                                  (+ top-offset (node-left-subtree-length node)
-                                                     (node-token-length node))
-                                                  stack escape))
-                  (new-stack
-                   (cond
-                     ((is-close? type) (cons type right-stack))
-                     ((and (is-open? type) (matches? type (car right-stack)))
-                      (cdr right-stack))
-                     ((is-open? type) (escape #f))
-                     (else right-stack))))
-             (cond
-               ((null? new-stack)
-                (escape (+ top-offset (node-left-subtree-length node))))
-               (else
-                (do-match-backward (node-left node) top-offset new-stack escape)))))))
+           (define td (node-token-data node))
+           (define type (paren-type td))
+           (define new-stack
+             (let* ([stack (do-match-backward (node-right node)
+                                              (+ top-offset (node-left-subtree-length node)
+                                                 (node-token-length node))
+                                              stack invisible? escape)]
+                    [stack
+                     (if invisible?
+                         (push-invisibles invisible-close (paren-invisible-closes td) stack)
+                         stack)]
+                    [stack
+                     (cond
+                       [(is-close? type)
+                        (cons type stack)]
+                       [(is-open? type)
+                        (pop1 type stack)]
+                       [else stack])]
+                    [_ (unless stack (escape #f))]
+                    [stack
+                     (if invisible?
+                         (pop-invisibles invisible-open (paren-invisible-opens td) stack)
+                         stack)])
+               (unless stack (escape #f))
+               stack))
+           (cond
+             [(null? new-stack)
+              (escape (+ top-offset (node-left-subtree-length node)))]
+             [(not new-stack) (escape #f)]
+             [else
+              (do-match-backward (node-left node) top-offset new-stack invisible? escape)]))))
       
       (define/public (test)
         (let ((v null)
