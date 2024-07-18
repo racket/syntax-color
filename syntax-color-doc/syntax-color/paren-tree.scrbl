@@ -1,5 +1,5 @@
 #lang scribble/manual
-@(require (for-label racket))
+@(require (for-label syntax-color/paren-tree racket))
 
 @title{Parenthesis Matching}
 
