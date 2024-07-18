@@ -20,16 +20,7 @@ structures and some helpful utilities for the @racket[color:text<%>]
 class of @racketmodname[framework].
 
 @table-of-contents[]
-
-@; ----------------------------------------------------------------------
-
-@section{Parenthesis Matching}
-
-@defmodule[syntax-color/paren-tree]
-
-@defclass[paren-tree% object% ()]
-
-Parenthesis matching code built on top of @racket[token-tree%].
+@include-section["paren-tree.scrbl"]
 
 @; ----------------------------------------------------------------------
 

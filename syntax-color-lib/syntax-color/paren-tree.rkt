@@ -24,6 +24,15 @@
 ;; invisible-opens, invisible-closes : natural
 (define-struct paren (type length invisible-opens invisible-closes) #:transparent)
 
+(define common-parens
+  (list (make-paren '|(| 1 0 0)
+        (make-paren '|)| 1 0 0)
+        (make-paren '|]| 1 0 0)
+        (make-paren '|[| 1 0 0)
+        (make-paren '|}| 1 0 0)
+        (make-paren '|{| 1 0 0)))
+(define false-zero-paren (make-paren #f 0 0 0))
+
   (define paren-tree%
     (class object%
 
@@ -66,15 +75,6 @@
       
       (define tree (new token-tree%))
       (define invalid-tree (new token-tree%))
-      
-      (define common-parens
-        (list (make-paren '|(| 1 0 0)
-              (make-paren '|)| 1 0 0)
-              (make-paren '|]| 1 0 0)
-              (make-paren '|[| 1 0 0)
-              (make-paren '|}| 1 0 0)
-              (make-paren '|{| 1 0 0)))
-      (define false-zero-paren (make-paren #f 0 0 0))
       
       (define/private (build-paren type len invisible-opens invisible-closes)
         (cond
@@ -133,7 +133,7 @@
             (send good remove-root!))
           (insert-last! tree good)))
       
-      ;; add-token: (->* ((or/c #f symbol invisible-paren?)
+      ;; add-token: (->* ((or/c #f symbol?)
       ;;                  natural?)
       ;;                 (#:invisible-opens (or/c #f natural?)
       ;;                  #:invisible-closes (or/c #f natural?))
@@ -211,17 +211,6 @@
                d
                (is-close? (paren-type d)))))
 
-      ;; match-forward: natural-number? -> (union #f natural-number)^3
-      ;; The first return is the starting position of the open-paren
-      ;; The second return is the position of the closing paren.
-      ;; If the third return is #f, then the first two returns
-      ;; represent a real match.
-      ;; If the third return is a number, it is the maximum position
-      ;; in the tree that was searched.
-      ;; If it indicates an error, the first two results give the
-      ;; starting and stoping positions for error highlighting.
-      ;; If all three return #f, then there was no tree to search, or 
-      ;; the position did not immediately precede an open.
       (define/public (match-forward pos #:invisible [_invisible #f])
         (check-arguments 'match-forward pos _invisible)
         (send tree search! pos)
