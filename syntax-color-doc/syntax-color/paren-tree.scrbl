@@ -21,6 +21,8 @@ Parenthesis matching code built on top of @racket[token-tree%].
   @method[paren-tree% match-backward]. The @racket[paren-tree%] also supports a notion of invisible
   parentheses that take up no space, where the opens exist only at the start of a token
   and the closes exist only at the end of a token.
+
+  @history[#:changed "1.6" @list{Added support for invisible parens.}]
  }
 
   @defmethod[(add-token [type (or/c #f symbol?)]
@@ -37,6 +39,8 @@ Parenthesis matching code built on top of @racket[token-tree%].
   indicate how many of each there are on this token (note that
   the invisible opens all exist at the start of the token and
   the invisible closes all exist at the end of the token).
+
+  @history[#:changed "1.6" @list{Added @racket[#:invisible-opens] and @racket[#:invisible-closes] arguments.}]
  }
 
   @defmethod[(match-forward [pos natural?]
@@ -70,6 +74,8 @@ Parenthesis matching code built on top of @racket[token-tree%].
   highlighting. If all three are @racket[#f], then there was
   no tree to search, or the position did not immediately
   precede an open.
+
+  @history[#:changed "1.6" @list{Added @racket[#:invisible] argument.}]
  }
 
   @defmethod[(match-backward [pos natural?]
@@ -89,6 +95,8 @@ Parenthesis matching code built on top of @racket[token-tree%].
   @racket[paren-tree% match-forward]. So, if the match is
   successful, the first result is the location of the open
   paren and the second is the close.
+
+  @history[#:changed "1.6" @list{Added @racket[#:invisible] argument.}]
  }
 
  @defmethod[(split-tree [pos natural?]) void?]{
@@ -115,6 +123,8 @@ Parenthesis matching code built on top of @racket[token-tree%].
 
   @defmethod[(get-invisible-count [pos natural?]) (values natural? natural?)]{
    Returns the number of invisible opens and invisible closes at @racket[pos].
+
+  @history[#:added "1.6"]
   }
  ]
 
