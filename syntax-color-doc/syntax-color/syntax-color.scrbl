@@ -53,7 +53,7 @@ class of @racketmodname[framework].
   see @xmethod[color:text<%> start-colorer].
 }
 
-@defproc[(check-colorer-results-match-port-before-and-afters
+@defproc[(check-colorer-results-match-port-before-and-after
           [who symbol?]
           [type any/c]
           [pos-before (or/c exact-positive-integer? #f)]
