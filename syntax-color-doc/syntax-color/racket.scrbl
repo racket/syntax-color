@@ -1,6 +1,7 @@
 #lang scribble/manual
 @(require (for-label racket/base
                      racket/class
+                     racket/contract
                      syntax-color/color-textoid
                      syntax-color/racket-indentation
                      syntax-color/racket-navigation
@@ -14,11 +15,11 @@ parenthesis information produced by a coloring lexer. They can work
 with any object that implements @racket[color-textoid<%>], which
 is extended by @racket[color:text<%>].
 
-@history[#:added "1.3"]
-
 @section{S-Expression Navigation}
 
 @defmodule[syntax-color/racket-navigation]
+
+@history[#:added "1.3"]
 
 @deftogether[(
 @defproc[(racket-forward-sexp [text (is-a?/c color-textoid<%>)]
@@ -54,6 +55,8 @@ result is @racket[#t] when the token corresponds to @litchar["'"],
 @section{S-Expression Indentation}
 
 @defmodule[syntax-color/racket-indentation]
+
+@history[#:added "1.3"]
 
 @defproc[(racket-amount-to-indent [text (is-a?/c color-textoid<%>)]
                                   [pos exact-nonnegative-integer?]
